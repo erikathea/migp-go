@@ -19,7 +19,12 @@ func newKVStore(db *sql.DB) (*kvStore, error) {
 	CREATE TABLE IF NOT EXISTS kv_store (
 		id TEXT PRIMARY KEY,
 		value BYTEA
-	)`
+	);
+	CREATE TABLE IF NOT EXISTS kv_store_shadow (
+		id TEXT,
+		value BYTEA,
+		PRIMARY KEY (id, value)
+	);`
 	_, err := db.Exec(query)
 	if err != nil {
 		return nil, err
@@ -32,7 +37,16 @@ func newKVStore(db *sql.DB) (*kvStore, error) {
 func (kv *kvStore) Put(id string, value []byte) error {
 	query := `
 	INSERT INTO kv_store (id, value) VALUES ($1, $2)
-	ON CONFLICT (id) DO UPDATE SET value = $2`
+	ON CONFLICT (id) DO UPDATE SET value = $2;`
+	_, err := kv.db.Exec(query, id, value)
+	return err
+}
+
+// Put a value at key id and replace any existing value.
+func (kv *kvStore) insertShadow(id string, value []byte) error {
+	query := `
+	INSERT INTO kv_store_shadow (id, value) VALUES ($1, $2)
+	ON CONFLICT (id, value) DO NOTHING;`
 	_, err := kv.db.Exec(query, id, value)
 	return err
 }
@@ -65,4 +79,12 @@ func (kv *kvStore) Get(id string) ([]byte, error) {
 		return nil, err
 	}
 	return value, nil
+}
+
+// checkIfUnique checks if the value for a given id is unique in the shadow table.
+func (kv *kvStore) checkIfUnique(id string, value []byte) bool {
+	query := `SELECT 1 FROM kv_store_shadow WHERE id = $1 AND value = $2`
+	var exists int
+	err := kv.db.QueryRow(query, id, value).Scan(&exists)
+	return err == sql.ErrNoRows
 }
