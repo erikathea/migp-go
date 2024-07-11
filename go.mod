@@ -1,4 +1,4 @@
-module github.com/cloudflare/migp-go
+module github.com/erikathea/migp-go
 
 go 1.16
 
