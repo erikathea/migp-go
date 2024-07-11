@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/cloudflare/migp-go/pkg/migp"
 	"github.com/cloudflare/migp-go/pkg/mutator"
@@ -24,9 +25,20 @@ func newServer(cfg migp.ServerConfig) (*server, error) {
 		return nil, err
 	}
 
-	db, err := sql.Open("postgres", "user=cs-db password=hacker dbname=cs-db sslmode=disable")
+	dbConnectionString := os.Getenv("DB_CONNECTION_ST")
+	if dbConnectionString == "" {
+		log.Println("DB_CONNECTION_ST environment variable not set. Using default localhost connection string.")
+		dbConnectionString = "user=cs-db password=hacker dbname=cs-db sslmode=disable host=localhost"
+	}
+
+	log.Printf("Using database connection string: %s", dbConnectionString)
+	db, err := sql.Open("postgres", dbConnectionString)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Error opening database: %v", err)
+	}
+
+	if err = db.Ping(); err != nil {
+		log.Fatalf("Error connecting to the database: %v", err)
 	}
 
 	kv, err := newKVStore(db)
