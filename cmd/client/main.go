@@ -25,7 +25,7 @@ func main() {
 
 	flag.StringVar(&configFile, "config", "", "Client configuration file (default: retrieve from server)")
 	flag.BoolVar(&dumpConfig, "dump-config", false, "Dump the client configuration to stdout and exit")
-	flag.BoolVar(&showPassword, "show-password", false, "Show the password in the output")
+	flag.BoolVar(&showPassword, "show-password", true, "Show the password in the output")
 	flag.StringVar(&inputFilename, "infile", "-", "input file of credentials to query in the format <username>:<password> ('-' for stdin)")
 	flag.StringVar(&targetURL, "target", "http://localhost:8080", "target MIGP server")
 
