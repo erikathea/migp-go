@@ -4,6 +4,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -12,6 +13,8 @@ import (
 
 	"github.com/cloudflare/migp-go/pkg/migp"
 	"github.com/cloudflare/migp-go/pkg/mutator"
+	"database/sql"
+	_ "github.com/lib/pq"
 )
 
 // newServer returns a new server initialized using the provided configuration
@@ -21,7 +24,12 @@ func newServer(cfg migp.ServerConfig) (*server, error) {
 		return nil, err
 	}
 
-	kv, err := newKVStore()
+	db, err := sql.Open("postgres", "user=cs-db password=hacker dbname=cs-db sslmode=disable")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	kv, err := newKVStore(db)
 	if err != nil {
 		return nil, err
 	}
@@ -55,11 +63,13 @@ func (s *server) insert(username, password, metadata []byte, numVariants int, in
 	if err != nil {
 		return err
 	}
+
 	err = s.kv.Append(bucketIDHex, newEntry)
 	if err != nil {
 		return err
 	}
-
+	log.Println("----ID ", bucketIDHex)
+	log.Println("newEntry ", base64.StdEncoding.EncodeToString(newEntry))
 	passwordVariants := mutator.NewRDasMutator().Mutate(password, numVariants)
 	for _, variant := range passwordVariants {
 		newEntry, err = s.migpServer.EncryptBucketEntry(username, variant, migp.MetadataSimilarPassword, metadata)
@@ -67,6 +77,9 @@ func (s *server) insert(username, password, metadata []byte, numVariants int, in
 			return err
 		}
 		err = s.kv.Append(bucketIDHex, newEntry)
+		log.Println("entry with variants ", base64.StdEncoding.EncodeToString(newEntry))
+		bucketContents, err := s.kv.Get(bucketIDHex)
+		log.Println("content ", base64.StdEncoding.EncodeToString(bucketContents))
 		if err != nil {
 			return err
 		}
@@ -78,10 +91,16 @@ func (s *server) insert(username, password, metadata []byte, numVariants int, in
 			return err
 		}
 		err = s.kv.Append(bucketIDHex, newEntry)
+		log.Println("entry includeUsernameVariant ", base64.StdEncoding.EncodeToString(newEntry))
+		bucketContents, err := s.kv.Get(bucketIDHex)
+		log.Println("content ", base64.StdEncoding.EncodeToString(bucketContents))
 		if err != nil {
 			return err
 		}
 	}
+	bucketContents, err := s.kv.Get(bucketIDHex)
+	log.Println("content ", base64.StdEncoding.EncodeToString(bucketContents))
+	log.Println("ID ", bucketIDHex)
 
 	return nil
 }
@@ -126,6 +145,7 @@ func (s *server) handleEvaluate(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "application/octet-stream")
 
 	respBody, err := migpResponse.MarshalBinary()
+	log.Println(respBody)
 	if err != nil {
 		log.Println("Response serialization failed:", err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)

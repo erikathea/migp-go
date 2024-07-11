@@ -1,44 +1,68 @@
-// Copyright (c) 2021 Cloudflare, Inc. All rights reserved.
-// SPDX-License-Identifier: BSD-3-Clause
-
 package main
 
-import "sync"
+import (
+	"database/sql"
+	_ "github.com/lib/pq"
+)
 
-// kvStore is a wrapper for a KV store. For now just use a simple dynamically
-// allocated in-memory go map This won't scale properly, but ok for testing.
-// Implements migp.Getter
+// kvStore is a wrapper for a KV store backed by PostgreSQL.
 type kvStore struct {
-	store map[string][]byte
-	lock  sync.RWMutex
+	db *sql.DB
 }
 
-// newKVStore initializes a new bucket store. Just using a simple map for now.
-func newKVStore() (*kvStore, error) {
-	return &kvStore{
-		store: make(map[string][]byte),
-	}, nil
+// newKVStore initializes a new kvStore with a PostgreSQL database connection.
+func newKVStore(db *sql.DB) (*kvStore, error) {
+	kv := &kvStore{db: db}
+
+	// Create the table if it doesn't exist
+	query := `
+	CREATE TABLE IF NOT EXISTS kv_store (
+		id TEXT PRIMARY KEY,
+		value BYTEA
+	)`
+	_, err := db.Exec(query)
+	if err != nil {
+		return nil, err
+	}
+
+	return kv, nil
 }
 
 // Put a value at key id and replace any existing value.
 func (kv *kvStore) Put(id string, value []byte) error {
-	kv.lock.Lock()
-	defer kv.lock.Unlock()
-	kv.store[id] = value
-	return nil
+	query := `
+	INSERT INTO kv_store (id, value) VALUES ($1, $2)
+	ON CONFLICT (id) DO UPDATE SET value = $2`
+	_, err := kv.db.Exec(query, id, value)
+	return err
 }
 
 // Append a value to any existing value at key id.
 func (kv *kvStore) Append(id string, value []byte) error {
-	kv.lock.Lock()
-	defer kv.lock.Unlock()
-	kv.store[id] = append(kv.store[id], value...)
-	return nil
+	query := `SELECT value FROM kv_store WHERE id = $1`
+	var existingValue []byte
+	err := kv.db.QueryRow(query, id).Scan(&existingValue)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return kv.Put(id, value)
+		}
+		return err
+	}
+
+	newValue := append(existingValue, value...)
+	return kv.Put(id, newValue)
 }
 
 // Get returns the value in the key identified by id.
 func (kv *kvStore) Get(id string) ([]byte, error) {
-	kv.lock.RLock()
-	defer kv.lock.RUnlock()
-	return kv.store[id], nil
+	query := `SELECT value FROM kv_store WHERE id = $1`
+	var value []byte
+	err := kv.db.QueryRow(query, id).Scan(&value)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return []byte{}, nil
+		}
+		return nil, err
+	}
+	return value, nil
 }
