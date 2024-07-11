@@ -56,48 +56,55 @@ func (s *server) handler() http.Handler {
 }
 
 // insert encrypts a credential pair and stores it in the configured KV store
-func (s *server) insert(username, password, metadata []byte, numVariants int, includeUsernameVariant bool) error {
-
+func (s *server) insert(username, password, metadata []byte, numVariants int, includeUsernameVariant, phaseOne bool) error {
+	var (
+        newEntry []byte
+        err error
+    )
 	bucketIDHex := migp.BucketIDToHex(s.migpServer.BucketID(username))
-	newEntry, err := s.migpServer.EncryptBucketEntry(username, password, migp.MetadataBreachedPassword, metadata)
-	if err != nil {
-		return err
-	}
-
-	err = s.kv.Append(bucketIDHex, newEntry)
-	if err != nil {
-		return err
-	}
 	log.Println("----ID ", bucketIDHex)
-	log.Println("newEntry ", base64.StdEncoding.EncodeToString(newEntry))
-	passwordVariants := mutator.NewRDasMutator().Mutate(password, numVariants)
-	for _, variant := range passwordVariants {
-		newEntry, err = s.migpServer.EncryptBucketEntry(username, variant, migp.MetadataSimilarPassword, metadata)
+	if phaseOne {
+		newEntry, err := s.migpServer.EncryptBucketEntry(username, password, migp.MetadataBreachedPassword, metadata)
 		if err != nil {
 			return err
 		}
+
 		err = s.kv.Append(bucketIDHex, newEntry)
-		log.Println("entry with variants ", base64.StdEncoding.EncodeToString(newEntry))
-		bucketContents, err := s.kv.Get(bucketIDHex)
-		log.Println("content ", base64.StdEncoding.EncodeToString(bucketContents))
 		if err != nil {
 			return err
+		}
+		log.Println("newEntry ", base64.StdEncoding.EncodeToString(newEntry))
+
+		if includeUsernameVariant {
+			newEntry, err = s.migpServer.EncryptBucketEntry(username, nil, migp.MetadataBreachedUsername, metadata)
+			if err != nil {
+				return err
+			}
+
+			err = s.kv.Append(bucketIDHex, newEntry)
+			if err != nil {
+				return err
+			}
+			log.Println("-- includeUsernameVariant ", base64.StdEncoding.EncodeToString(newEntry))
+		}
+		return nil
+	} else {
+		passwordVariants := mutator.NewRDasMutator().Mutate(password, numVariants)
+		for _, variant := range passwordVariants {
+			newEntry, err = s.migpServer.EncryptBucketEntry(username, variant, migp.MetadataSimilarPassword, metadata)
+			if err != nil {
+				return err
+			}
+
+			err = s.kv.Append(bucketIDHex, newEntry)
+			if err != nil {
+				return err
+			}
+			log.Println("-- password variant ", base64.StdEncoding.EncodeToString(newEntry))
+
 		}
 	}
 
-	if includeUsernameVariant {
-		newEntry, err = s.migpServer.EncryptBucketEntry(username, nil, migp.MetadataBreachedUsername, metadata)
-		if err != nil {
-			return err
-		}
-		err = s.kv.Append(bucketIDHex, newEntry)
-		log.Println("entry includeUsernameVariant ", base64.StdEncoding.EncodeToString(newEntry))
-		bucketContents, err := s.kv.Get(bucketIDHex)
-		log.Println("content ", base64.StdEncoding.EncodeToString(bucketContents))
-		if err != nil {
-			return err
-		}
-	}
 	bucketContents, err := s.kv.Get(bucketIDHex)
 	log.Println("content ", base64.StdEncoding.EncodeToString(bucketContents))
 	log.Println("ID ", bucketIDHex)

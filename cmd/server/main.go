@@ -22,7 +22,7 @@ import (
 func main() {
 
 	var configFile, inputFilename, metadata, listenAddr string
-	var dumpConfig, includeUsernameVariant bool
+	var dumpConfig, includeUsernameVariant, phaseOne bool
 	var numVariants int
 
 	flag.StringVar(&configFile, "config", "", "Server configuration file")
@@ -32,6 +32,7 @@ func main() {
 	flag.StringVar(&metadata, "metadata", "", "optional metadata string to store alongside breach entries")
 	flag.IntVar(&numVariants, "num-variants", 9, "number of password variants to include")
 	flag.BoolVar(&includeUsernameVariant, "username-variant", true, "include a username-only variant")
+	flag.BoolVar(&phaseOne, "phaseone", true, "inserts primary list of username-password")
 
 	flag.Parse()
 
@@ -84,10 +85,12 @@ func main() {
 			continue
 		}
 		username, password := fields[0], fields[1]
-		if err := s.insert(username, password, []byte(metadata), numVariants, includeUsernameVariant); err != nil {
+
+		if err := s.insert(username, password, []byte(metadata), numVariants, includeUsernameVariant, phaseOne); err != nil {
 			failureCount += 1
 			continue
 		}
+
 		successCount += 1
 		log.Printf("\rEncrypting breach entries: %d successes, %d failures", successCount, failureCount)
 	}
