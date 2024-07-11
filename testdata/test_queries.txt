@@ -2,3 +2,13 @@ username1@example.com:password1
 username1@example.com:password
 username1@example.com:
 notexposed@example.com:1234
+username0@example.com:password0
+username0@example.com:PASSWORD0
+username0@example.com:password
+username0@example.com:passwor
+username0@example.com:passwo
+username0@example.com:password00
+username0@example.com:1password0
+username0@example.com:password0a
+username0@example.com:0password0
+username0@example.com:pssword0

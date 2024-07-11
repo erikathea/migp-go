@@ -40,7 +40,7 @@ func TestServer(t *testing.T) {
 	}
 
 	// insert test record
-	err = s.insert(testUsername, testPassword, testMetadata, 9, true)
+	err = s.insert(testUsername, testPassword, testMetadata, 9, true, true)
 	if err != nil {
 		t.Fatal(err)
 	}
