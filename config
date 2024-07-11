@@ -1,0 +1,8 @@
+{
+    "version": 2,
+    "bucketIDBitSize": 20,
+    "bucketHasher": 1,
+    "slowHasher": 0,
+    "bucketEncryptor": 1,
+    "oprfSuite": 3,
+}
