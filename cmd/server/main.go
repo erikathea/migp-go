@@ -16,7 +16,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/cloudflare/migp-go/pkg/migp"
+	"github.com/erikathea/migp-go/pkg/migp"
 )
 
 func main() {

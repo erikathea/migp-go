@@ -12,8 +12,8 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/cloudflare/migp-go/pkg/migp"
-	"github.com/cloudflare/migp-go/pkg/mutator"
+	"github.com/erikathea/migp-go/pkg/migp"
+	"github.com/erikathea/migp-go/pkg/mutator"
 	"database/sql"
 	_ "github.com/lib/pq"
 )
