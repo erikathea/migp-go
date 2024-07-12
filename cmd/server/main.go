@@ -97,7 +97,7 @@ func main() {
 	}
 
 	if startServer {
-		log.Printf("\nStarting MIGP server %s", a)
+		log.Printf("\nStarting MIGP server")
 		log.Fatal(http.ListenAndServe(listenAddr, s.handler()))
 	}
 }
