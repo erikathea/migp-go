@@ -4,17 +4,19 @@
 package main
 
 import (
+	"crypto/rand"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math"
 	"net/http"
 	"os"
 
-	"github.com/cloudflare/migp-go/pkg/migp"
-	"github.com/cloudflare/migp-go/pkg/mutator"
-	"database/sql"
+	"github.com/erikathea/migp-go/pkg/migp"
+	"github.com/erikathea/migp-go/pkg/mutator"
 	_ "github.com/lib/pq"
 )
 
@@ -67,6 +69,19 @@ func (s *server) handler() http.Handler {
 	return mux
 }
 
+// GenerateRandomString generates a random λ-bits long string
+func GenerateRandomString(bits int) ([]byte, error) {
+    bytes := int(math.Ceil(float64(bits) / 8.0))
+    randomBytes := make([]byte, bytes)
+
+    _, err := rand.Read(randomBytes)
+    if err != nil {
+        return nil, err
+    }
+
+    return randomBytes, nil
+}
+
 // insert encrypts a credential pair and stores it in the configured KV store
 func (s *server) insert(username, password, metadata []byte, numVariants int, includeUsernameVariant, phaseOne bool) error {
 	var (
@@ -108,7 +123,9 @@ func (s *server) insert(username, password, metadata []byte, numVariants int, in
 			newEntry, err = s.migpServer.EncryptBucketEntry(username, variant, migp.MetadataSimilarPassword, metadata)
 			// Ensure the value is unique before appending
 			for !s.kv.checkIfUnique(bucketIDHex, newEntry) {
-				newEntry, err = s.migpServer.EncryptBucketEntry(username, variant, migp.MetadataSimilarPassword, metadata)
+				randomString, _ := GenerateRandomString(256)
+				altVariant := mutator.NewRDasMutator().Mutate(randomString, 1)
+				newEntry, err = s.migpServer.EncryptBucketEntry(username, altVariant[0], migp.MetadataSimilarPassword, metadata)
 			}
 			if err != nil {
 				return err
@@ -118,7 +135,6 @@ func (s *server) insert(username, password, metadata []byte, numVariants int, in
 				return err
 			}
 			s.kv.insertShadow(bucketIDHex, newEntry)
-			log.Println("-- password variant ", base64.StdEncoding.EncodeToString(newEntry))
 
 		}
 	}
