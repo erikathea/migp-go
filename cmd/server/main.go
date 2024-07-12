@@ -22,7 +22,7 @@ import (
 func main() {
 
 	var configFile, inputFilename, metadata, listenAddr string
-	var dumpConfig, includeUsernameVariant, phaseOne bool
+	var dumpConfig, includeUsernameVariant, phaseOne, startServer bool
 	var numVariants int
 
 	flag.StringVar(&configFile, "config", "", "Server configuration file")
@@ -33,6 +33,7 @@ func main() {
 	flag.IntVar(&numVariants, "num-variants", 9, "number of password variants to include")
 	flag.BoolVar(&includeUsernameVariant, "username-variant", true, "include a username-only variant")
 	flag.BoolVar(&phaseOne, "phaseone", true, "inserts primary list of username-password")
+	flag.BoolVar(&startServer, "start-server", true, "starts local server")
 
 	flag.Parse()
 
@@ -95,6 +96,8 @@ func main() {
 		log.Printf("\rEncrypting breach entries: %d successes, %d failures", successCount, failureCount)
 	}
 
-	log.Printf("\nStarting MIGP server")
-	log.Fatal(http.ListenAndServe(listenAddr, s.handler()))
+	if startServer {
+		log.Printf("\nStarting MIGP server %s", a)
+		log.Fatal(http.ListenAndServe(listenAddr, s.handler()))
+	}
 }

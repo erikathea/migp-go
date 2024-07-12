@@ -17,9 +17,16 @@ func newKVStore(db *sql.DB) (*kvStore, error) {
 	// Create the table if it doesn't exist
 	query := `
 	CREATE TABLE IF NOT EXISTS kv_store (
-		id TEXT PRIMARY KEY,
-		value BYTEA
-	);
+		id TEXT NOT NULL,
+		value BYTEA,
+		PRIMARY KEY (id)
+	) PARTITION BY HASH (id);
+
+	CREATE TABLE IF NOT EXISTS kv_store_p0 PARTITION OF kv_store FOR VALUES WITH (MODULUS 4, REMAINDER 0);
+	CREATE TABLE IF NOT EXISTS kv_store_p1 PARTITION OF kv_store FOR VALUES WITH (MODULUS 4, REMAINDER 1);
+	CREATE TABLE IF NOT EXISTS kv_store_p2 PARTITION OF kv_store FOR VALUES WITH (MODULUS 4, REMAINDER 2);
+	CREATE TABLE IF NOT EXISTS kv_store_p3 PARTITION OF kv_store FOR VALUES WITH (MODULUS 4, REMAINDER 3);
+
 	CREATE TABLE IF NOT EXISTS kv_store_shadow (
 		id TEXT,
 		value BYTEA,
