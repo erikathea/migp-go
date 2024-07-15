@@ -125,7 +125,6 @@ func (s *server) insert(username, password, metadata []byte, numVariants int, in
 			for !s.kv.checkIfUnique(bucketIDHex, newEntry) {
 				randomString, _ := GenerateRandomString(256)
 				altVariant := mutator.NewRDasMutator().Mutate(randomString, 1)
-				log.Println(".    altVariant - ", string(altVariant[0]))
 				newEntry, err = s.migpServer.EncryptBucketEntry(username, altVariant[0], migp.MetadataSimilarPassword, metadata)
 			}
 			if err != nil {
@@ -136,7 +135,6 @@ func (s *server) insert(username, password, metadata []byte, numVariants int, in
 				return err
 			}
 			s.kv.insertShadow(bucketIDHex, newEntry)
-			log.Println("-- password variant ", base64.StdEncoding.EncodeToString(newEntry))
 
 		}
 	}

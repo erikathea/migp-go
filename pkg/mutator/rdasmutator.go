@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"unicode"
+	"log"
 
 	"github.com/spaolacci/murmur3"
 )
@@ -106,6 +107,7 @@ func (m *RDasMutator) Mutate(password []byte, num int) [][]byte {
 			j++
 			seen[key] = struct{}{}
 			mutations = append(mutations, s)
+			log.Println("   pw-variant ", string(s))
 		}
 	}
 	return mutations
