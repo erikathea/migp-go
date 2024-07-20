@@ -140,10 +140,7 @@ func (s *server) insert(username, password, metadata []byte, numVariants int, in
 		}
 	}
 
-	bucketContents, err := s.kv.Get(bucketIDHex)
-	log.Println("content ", base64.StdEncoding.EncodeToString(bucketContents))
 	log.Println("ID ", bucketIDHex)
-
 	return nil
 }
 

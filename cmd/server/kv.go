@@ -31,7 +31,9 @@ func newKVStore(db *sql.DB) (*kvStore, error) {
 		id TEXT,
 		value BYTEA,
 		PRIMARY KEY (id, value)
-	);`
+	);
+	CREATE INDEX IF NOT EXISTS kv_store_shadow_values ON kv_store_shadow (value);
+	`
 	_, err := db.Exec(query)
 	if err != nil {
 		return nil, err
@@ -90,7 +92,7 @@ func (kv *kvStore) Get(id string) ([]byte, error) {
 
 // checkIfUnique checks if the value for a given id is unique in the shadow table.
 func (kv *kvStore) checkIfUnique(id string, value []byte) bool {
-	query := `SELECT 1 FROM kv_store_shadow WHERE id = $1 AND value = $2`
+	query := `SELECT 1 FROM kv_store_shadow WHERE value = $2`
 	var exists int
 	err := kv.db.QueryRow(query, id, value).Scan(&exists)
 	return err == sql.ErrNoRows
