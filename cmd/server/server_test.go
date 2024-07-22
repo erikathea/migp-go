@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/cloudflare/migp-go/pkg/migp"
+	"github.com/erikathea/migp-go/pkg/migp"
 )
 
 // TestServer spins up a MIGP server and runs a series of tests
