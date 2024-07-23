@@ -17,7 +17,7 @@ import (
 
 	"github.com/erikathea/migp-go/pkg/migp"
 	"github.com/erikathea/migp-go/pkg/mutator"
-	"database/sql"
+
 	_ "github.com/lib/pq"
 )
 
