@@ -1,8 +1,8 @@
 # MIGP library
 
-This contains a library for the MIGP (Might I Get Pwned) protocol. MIGP can be
-used to build privacy-preserving compromised credential checking services.
-Read [the paper](https://arxiv.org/pdf/2109.14490.pdf) or the [blog post](https://blog.cloudflare.com/privacy-preserving-compromised-credential-checking) for more details.
+Forked from [Cloudflare's MIGP (Might I Get Pwned)](https://github.com/cloudflare/migp-go), this project is an implementation of MIGP 2.0 version. 
+MIGP protocol can be used to build privacy-preserving compromised credential checking services.
+Read [the MIGP 2.0 paper](https://eprint.iacr.org/2023/1848.pdf), [the original MIGP paper](https://arxiv.org/pdf/2109.14490.pdf), or the [blog post](https://blog.cloudflare.com/privacy-preserving-compromised-credential-checking) for more details.
 
 ## Quick start
 
