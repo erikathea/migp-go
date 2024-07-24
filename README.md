@@ -6,12 +6,16 @@ Read [the MIGP 2.0 paper](https://eprint.iacr.org/2023/1848.pdf), [the original 
 
 ## Quick start
 
-### PostgreSQL as KV Store
-This version uses PostgreSQL for key-value storage. Please set `DB_CONNECTION_ST` environment variable. By default, there is a hard-coded (not ideal) default localhost connection string you can modify in the code `user=csdb password=hacker dbname=cs-db sslmode=disable host=localhost`.
-	`echo $DB_CONNECTION_ST`
-	`export DB_CONNECTION_ST="user=csdb password=hacker dbname=cs-db host=az-db-pg.postgres.database.azure.com sslmode=require"`
+### Build
 
-### Configuration
+	mkdir -p bin && go build -o bin/ ./cmd/...
+
+### Test
+
+	go test ./...
+
+
+### MIGP Configuration
 Default `config` file is included in the repo. Please set a `privateKey` using OPRF Suite 256.
 
 	// Generate a private key using the OPRF suite
@@ -24,27 +28,35 @@ Default `config` file is included in the repo. Please set a `privateKey` using O
     privateKeyHex := hex.EncodeToString(privateKeyBytes)
     fmt.Printf("Serialized OPRF private key: %s\n", privateKeyHex)
 
-### Run for Data Pre-processing
-Phase 1:
-	`cat testdata/test_breach.txt | bin/server -config=./localconfig -phaseone=true -start-server=false`
-Phase 2:
-	cat testdata/test_breach.txt | bin/server -config=./localconfig -phaseone=false -start-server=false -num-variants=10
 
-### Build
+### PostgreSQL as KV Store
 
-	mkdir -p bin && go build -o bin/ ./cmd/...
+This version uses PostgreSQL for key-value storage. Please set `DB_CONNECTION_ST` environment variable. 
 
-### Test
+By default, there is a hard-coded (not ideal) default localhost connection string you can modify in the code `user=csdb password=hacker dbname=cs-db sslmode=disable host=localhost`.
 
-	go test ./...
+	`echo $DB_CONNECTION_ST`
+	`export DB_CONNECTION_ST="user=csdb password=hacker dbname=cs-db host=az-db-pg.postgres.database.azure.com sslmode=require"`
 
-### Generate server configuration and start MIGP server
+
+### Start MIGP Data Processing
+
+*Phase 1* Storing username-password
+
+	`cat testdata/test_breach.txt | bin/server -config=./config -phaseone=true -username-variant=true`
+
+*Phase 2* Storing username-password variants
+
+	`cat testdata/test_breach.txt | bin/server -config=./config -phasetwo=true -num-variants=10`
+
+
+
+### Start MIGP server
 
 Start a local server that processes and stores breach entries from the input file.
 
-	cat testdata/test_breach.txt | bin/server &
+	bin/server -start-server=true -config=./config
 	
-
 
 
 ### Query MIGP server

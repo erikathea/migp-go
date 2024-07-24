@@ -91,9 +91,9 @@ func (kv *kvStore) Get(id string) ([]byte, error) {
 }
 
 // checkIfUnique checks if the value for a given id is unique in the shadow table.
-func (kv *kvStore) checkIfUnique(id string, value []byte) bool {
-	query := `SELECT 1 FROM kv_store_shadow WHERE value = $2`
+func (kv *kvStore) checkIfUnique(value []byte) bool {
+	query := `SELECT 1 FROM kv_store_shadow WHERE value = $1`
 	var exists int
-	err := kv.db.QueryRow(query, id, value).Scan(&exists)
+	err := kv.db.QueryRow(query, value).Scan(&exists)
 	return err == sql.ErrNoRows
 }

@@ -8,6 +8,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -84,17 +85,21 @@ func GenerateRandomString(bits int) ([]byte, error) {
 }
 
 // insert encrypts a credential pair and stores it in the configured KV store
-func (s *server) insert(username, password, metadata []byte, numVariants int, includeUsernameVariant, phaseOne bool) error {
+func (s *server) insert(username, password, metadata []byte, numVariants int, includeUsernameVariant bool, phaseNum int) error {
 	var (
         newEntry []byte
         err error
     )
 	bucketIDHex := migp.BucketIDToHex(s.migpServer.BucketID(username))
 	log.Println("----ID ", bucketIDHex)
-	if phaseOne {
+	if phaseNum==1 {
 		newEntry, err := s.migpServer.EncryptBucketEntry(username, password, migp.MetadataBreachedPassword, metadata)
 		if err != nil {
 			return err
+		}
+
+		if !s.kv.checkIfUnique(newEntry) {
+			return errors.New("skipping duplicate entry")
 		}
 
 		err = s.kv.Append(bucketIDHex, newEntry)
@@ -110,23 +115,28 @@ func (s *server) insert(username, password, metadata []byte, numVariants int, in
 				return err
 			}
 
-			err = s.kv.Append(bucketIDHex, newEntry)
-			if err != nil {
-				return err
+			if !s.kv.checkIfUnique(newEntry){
+				log.Println("-- skipping duplicate username-variant entry")
+			} else {
+				err = s.kv.Append(bucketIDHex, newEntry)
+				if err != nil {
+					return err
+				}
+				s.kv.insertShadow(bucketIDHex, newEntry)
+				log.Println("-- includeUsernameVariant ", base64.StdEncoding.EncodeToString(newEntry))
 			}
-			s.kv.insertShadow(bucketIDHex, newEntry)
-			log.Println("-- includeUsernameVariant ", base64.StdEncoding.EncodeToString(newEntry))
 		}
-		return nil
-	} else {
+	} else if phaseNum==2 {
 		passwordVariants := mutator.NewRDasMutator().Mutate(password, numVariants)
 		for _, variant := range passwordVariants {
 			newEntry, err = s.migpServer.EncryptBucketEntry(username, variant, migp.MetadataSimilarPassword, metadata)
 			// Ensure the value is unique before appending
-			for !s.kv.checkIfUnique(bucketIDHex, newEntry) {
+			attempt := 0
+			for !s.kv.checkIfUnique(newEntry) && attempt < 10 {
 				randomString, _ := GenerateRandomString(256)
 				altVariant := mutator.NewRDasMutator().Mutate(randomString, 1)
 				newEntry, err = s.migpServer.EncryptBucketEntry(username, altVariant[0], migp.MetadataSimilarPassword, metadata)
+				attempt++
 			}
 			if err != nil {
 				return err
@@ -136,7 +146,6 @@ func (s *server) insert(username, password, metadata []byte, numVariants int, in
 				return err
 			}
 			s.kv.insertShadow(bucketIDHex, newEntry)
-
 		}
 	}
 

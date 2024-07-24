@@ -22,8 +22,8 @@ import (
 func main() {
 
 	var configFile, inputFilename, metadata, listenAddr string
-	var dumpConfig, includeUsernameVariant, phaseOne, startServer bool
-	var numVariants int
+	var dumpConfig, includeUsernameVariant, phaseOne, phaseTwo, startServer bool
+	var numVariants, phaseNum int
 
 	flag.StringVar(&configFile, "config", "", "Server configuration file")
 	flag.StringVar(&listenAddr, "listen", "localhost:8080", "Server listen address")
@@ -32,10 +32,20 @@ func main() {
 	flag.StringVar(&metadata, "metadata", "", "optional metadata string to store alongside breach entries")
 	flag.IntVar(&numVariants, "num-variants", 9, "number of password variants to include")
 	flag.BoolVar(&includeUsernameVariant, "username-variant", true, "include a username-only variant")
-	flag.BoolVar(&phaseOne, "phaseone", true, "inserts primary list of username-password")
-	flag.BoolVar(&startServer, "start-server", true, "starts local server")
+	flag.BoolVar(&phaseOne, "phaseone", false, "inserts primary list of username-password")
+	flag.BoolVar(&phaseTwo, "phasetwo", false, "inserts password variants from the primary list")
+	flag.BoolVar(&startServer, "start-server", false, "starts local server")
 
 	flag.Parse()
+
+	phaseNum = 0
+	if phaseOne && phaseTwo {
+		log.Fatal("Wrong usage. Please select either `phaseone` or `phasetwo` to encrypt breach entries.")
+	} else if phaseOne {
+		phaseNum = 1
+	} else if phaseTwo {
+		phaseNum = 2
+	}
 
 	var cfg migp.ServerConfig
 	if configFile != "" {
@@ -77,23 +87,27 @@ func main() {
 	}
 
 	successCount, failureCount := 0, 0
-	log.Printf("Encrypting breach entries: %d successes, %d failures", successCount, failureCount)
-	scanner := bufio.NewScanner(inputFile)
-	for scanner.Scan() {
-		fields := bytes.SplitN(scanner.Bytes(), []byte(":"), 2)
-		if len(fields) < 2 {
-			failureCount += 1
-			continue
-		}
-		username, password := fields[0], fields[1]
+	if phaseNum != 0 {
+		log.Printf("Encrypting breach entries: %d successes, %d failures", successCount, failureCount)
+		scanner := bufio.NewScanner(inputFile)
+		for scanner.Scan() {
+			fields := bytes.SplitN(scanner.Bytes(), []byte(":"), 2)
+			if len(fields) < 2 {
+				failureCount += 1
+				continue
+			}
+			username, password := fields[0], fields[1]
 
-		if err := s.insert(username, password, []byte(metadata), numVariants, includeUsernameVariant, phaseOne); err != nil {
-			failureCount += 1
-			continue
+			if err := s.insert(username, password, []byte(metadata), numVariants, includeUsernameVariant, phaseNum); err != nil {
+				failureCount += 1
+				log.Printf("Insertion failed: %v", err)
+				continue
+			}
+			successCount += 1
 		}
-
-		successCount += 1
 		log.Printf("\rEncrypting breach entries: %d successes, %d failures", successCount, failureCount)
+	} else {
+		log.Printf("\n Please select either `phaseone` or `phasetwo` to encrypt breach entries.")
 	}
 
 	if startServer {
