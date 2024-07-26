@@ -22,7 +22,7 @@ import (
 func main() {
 
 	var configFile, inputFilename, metadata, listenAddr string
-	var dumpConfig, includeUsernameVariant, phaseOne, phaseTwo, startServer bool
+	var dumpConfig, includeUsernameVariant, phaseOne, phaseTwo, startServer,  usePagPassGPT bool
 	var numVariants, phaseNum int
 
 	flag.StringVar(&configFile, "config", "", "Server configuration file")
@@ -35,7 +35,7 @@ func main() {
 	flag.BoolVar(&phaseOne, "phaseone", false, "inserts primary list of username-password")
 	flag.BoolVar(&phaseTwo, "phasetwo", false, "inserts password variants from the primary list")
 	flag.BoolVar(&startServer, "start-server", false, "starts local server")
-
+	flag.BoolVar(&usePagPassGPT, "use-pagpassgpt", false, "generate password variants using PagPassGPT")
 	flag.Parse()
 
 	phaseNum = 0
@@ -86,6 +86,10 @@ func main() {
 		defer inputFile.Close()
 	}
 
+	if usePagPassGPT {
+		log.Printf("Please make sure you have access to PagPassGPT's model and `generate_pw_variant.py` script.")
+	}
+
 	successCount, failureCount := 0, 0
 	if phaseNum != 0 {
 		log.Printf("Encrypting breach entries: %d successes, %d failures", successCount, failureCount)
@@ -98,7 +102,7 @@ func main() {
 			}
 			username, password := fields[0], fields[1]
 
-			if err := s.insert(username, password, []byte(metadata), numVariants, includeUsernameVariant, phaseNum); err != nil {
+			if err := s.insert(username, password, []byte(metadata), numVariants, includeUsernameVariant, phaseNum, usePagPassGPT); err != nil {
 				failureCount += 1
 				log.Printf("Insertion failed: %v", err)
 				continue

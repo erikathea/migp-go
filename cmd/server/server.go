@@ -4,6 +4,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/rand"
 	"database/sql"
 	"encoding/base64"
@@ -15,6 +16,8 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"os/exec"
+	"strings"
 
 	"github.com/erikathea/migp-go/pkg/migp"
 	"github.com/erikathea/migp-go/pkg/mutator"
@@ -52,14 +55,14 @@ func newServer(cfg migp.ServerConfig) (*server, error) {
 
 	return &server{
 		migpServer: migpServer,
-		kv:         kv,
+		kv:		 kv,
 	}, nil
 }
 
 // server wraps a MIGP server and backing KV store
 type server struct {
 	migpServer *migp.Server
-	kv         *kvStore
+	kv		 *kvStore
 }
 
 // handler handles client requests
@@ -73,23 +76,24 @@ func (s *server) handler() http.Handler {
 
 // GenerateRandomString generates a random λ-bits long string
 func GenerateRandomString(bits int) ([]byte, error) {
-    bytes := int(math.Ceil(float64(bits) / 8.0))
-    randomBytes := make([]byte, bytes)
+	bytes := int(math.Ceil(float64(bits) / 8.0))
+	randomBytes := make([]byte, bytes)
 
-    _, err := rand.Read(randomBytes)
-    if err != nil {
-        return nil, err
-    }
+	_, err := rand.Read(randomBytes)
+	if err != nil {
+		return nil, err
+	}
 
-    return randomBytes, nil
+	return randomBytes, nil
 }
 
 // insert encrypts a credential pair and stores it in the configured KV store
-func (s *server) insert(username, password, metadata []byte, numVariants int, includeUsernameVariant bool, phaseNum int) error {
+func (s *server) insert(username, password, metadata []byte, numVariants int, includeUsernameVariant bool, phaseNum int, usePagPassGPT bool) error {
 	var (
-        newEntry []byte
-        err error
-    )
+		newEntry []byte
+		err error
+		passwordVariants [][]byte
+	)
 	bucketIDHex := migp.BucketIDToHex(s.migpServer.BucketID(username))
 	log.Println("----ID ", bucketIDHex)
 	if phaseNum==1 {
@@ -127,7 +131,40 @@ func (s *server) insert(username, password, metadata []byte, numVariants int, in
 			}
 		}
 	} else if phaseNum==2 {
-		passwordVariants := mutator.NewRDasMutator().Mutate(password, numVariants)
+		if usePagPassGPT {
+			cwd, err_ := os.Getwd()
+			if err_ != nil {
+			    fmt.Println("Error getting current working directory:", err_)
+			    return err_
+			}
+			cmd := exec.Command(cwd+"/run_pagpassgpt.sh", string(password), fmt.Sprintf("%d", numVariants))
+
+			var out bytes.Buffer
+			var stderr bytes.Buffer
+			cmd.Stdout = &out
+			cmd.Stderr = &stderr
+
+			err := cmd.Run()
+			if err != nil {
+				fmt.Println("Error executing script:", err)
+				fmt.Println("Script stderr:", stderr.String())
+				return err
+			}
+			outputStr := out.String()
+			passwords := strings.Split(outputStr, "\n")
+			passwordSet := make(map[string]struct{}) // Create a set to store unique passwords
+			for _, password := range passwords {
+				if password != "" {
+					passwordSet[password] = struct{}{}
+				}
+			}
+			for password := range passwordSet {
+				passwordVariants = append(passwordVariants, []byte(password))
+				log.Println("   gpt-variant ", string(password))
+			}
+		} else {
+			passwordVariants = mutator.NewRDasMutator().Mutate(password, numVariants)
+		}
 		for _, variant := range passwordVariants {
 			newEntry, err = s.migpServer.EncryptBucketEntry(username, variant, migp.MetadataSimilarPassword, metadata)
 			// Ensure the value is unique before appending
