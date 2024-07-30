@@ -35,19 +35,25 @@ This version uses PostgreSQL for key-value storage. Please set `DB_CONNECTION_ST
 
 By default, there is a hard-coded (not ideal) default localhost connection string you can modify in the code `user=csdb password=hacker dbname=cs-db sslmode=disable host=localhost`.
 
-	`echo $DB_CONNECTION_ST`
-	`export DB_CONNECTION_ST="user=csdb password=hacker dbname=cs-db host=az-db-pg.postgres.database.azure.com sslmode=require"`
+	echo $DB_CONNECTION_ST
+	export DB_CONNECTION_ST="user=csdb password=hacker dbname=cs-db host=az-db-pg.postgres.database.azure.com sslmode=require"
 
 
 ### Start MIGP Data Processing
 
-*Phase 1* Storing username-password
+*Phase 1:* Storing username-password
 
-	`cat testdata/test_breach.txt | bin/server -config=./config -phaseone=true -username-variant=true`
+	cat testdata/test_migp.txt | bin/server -config=./config -phaseone=true -username-variant=true
 
-*Phase 2* Storing username-password variants
+*Phase 2:* Storing username-password variants
 
-	`cat testdata/test_breach.txt | bin/server -config=./config -phasetwo=true -num-variants=10`
+	cat testdata/test_migp.txt | bin/server -config=./config -phasetwo=true -num-variants=10
+
+
+Use PagPassGPT to generate password variants. Make sure `./run_pagpassgpt.sh` is pointed to your model's directory.
+
+	cat testdata/test_migp.txt | bin/server -config=./config -start-server=false -phasetwo=true -num-variants=10 -use-pagpassgpt=true
+
 
 
 
@@ -56,7 +62,6 @@ By default, there is a hard-coded (not ideal) default localhost connection strin
 Start a local server that processes and stores breach entries from the input file.
 
 	bin/server -start-server=true -config=./config
-	
 
 
 ### Query MIGP server
